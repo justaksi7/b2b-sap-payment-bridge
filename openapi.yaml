@@ -1,3 +1,4 @@
+
 openapi: 3.0.3
 info:
   title: SAP Payment Bridge API
@@ -5,78 +6,78 @@ info:
   version: 1.0.0
 tags:
   - name: Authentication
-    description: !EXTERNAL! Endpoint for obtaining authentication tokens. OAuth2 M2M communication is used for secure access.
+    description: Endpoint for obtaining authentication tokens. OAuth2 M2M communication is used for secure access.
   - name: Payments
-    description: !EXTERNAL! Endpoints for creating payments and retrieving payment status.
+    description: Endpoints for creating payments and retrieving payment status.
   - name: Webhook Lambda
-    description: !INTERNAL! A Lambda function that signs and sends payment status updates to B2B partners
+    description: A Lambda function that signs and sends payment status updates to B2B partners
   - name: Worker Lambda
-    description: !INTERNAL! A Lambda function that processes payment requests and interacts with SAP systems.
+    description: A Lambda function that processes payment requests and interacts with SAP systems.
   - name: Event Dispatcher
-    description: !INTERNAL! A Lambda function that gets invoked by EventBridge and routes events to the appropriate handlers (Webhook SQS and Worker SQS).
+    description: A Lambda function that gets invoked by EventBridge and routes events to the appropriate handlers (Webhook SQS and Worker SQS).
   - name: Validation Lambda
-    description: !INTERNAL! A Lambda function that validates incoming payment requests before they are processed.
+    description: A Lambda function that validates incoming payment requests before they are processed.
   - name: Request Dispatcher
-    description: !INTERNAL! A Lambda function that routes incoming API requests to the appropriate internal services.
+    description: A Lambda function that routes incoming API requests to the appropriate internal services.
   - name: Logger Lambda
-    description: !INTERNAL! A Lambda function that logs all incoming requests and outgoing responses for auditing and debugging purposes.
+    description: A Lambda function that logs all incoming requests and outgoing responses for auditing and debugging purposes.
   - name: POST-SQS
-    description: !INTERNAL! SQS queue for handling incoming payment requests asynchronously.
+    description: SQS queue for handling incoming payment requests asynchronously.
   - name: WORKER-SQS
-    description: !INTERNAL! SQS queue for processing payment requests by the Worker Lambda.
+    description: SQS queue for processing payment requests by the Worker Lambda.
   - name: WEBHOOK-SQS
-    description: !INTERNAL! SQS queue for handling outgoing webhook notifications to B2B partners.
+    description: SQS queue for handling outgoing webhook notifications to B2B partners.
   - name: Logger SQS
-    description: !INTERNAL! SQS queue for logging requests, events, and errors.
+    description: SQS queue for logging requests, events, and errors.
   - name: EventBridgeScheduler
-    description: !INTERNAL! EventBridge Scheduler for triggering the Event Dispatcher Lambda at regular intervals.
+    description: EventBridge Scheduler for triggering the Event Dispatcher Lambda at regular intervals.
   - name: Payments Core
-    description: !INTERNAL! Core database for storing payments and outbox events.
+    description: Core database for storing payments and outbox events.
   - name: Partner Config
-    description: !INTERNAL! Database for storing B2B partner configurations, including webhook URLs and authentication details.
+    description: Database for storing B2B partner configurations, including webhook URLs and authentication details.
 
 paths:
   /auth/token:
-   post:
-    tags: [Authentication]
-    summary: Obtain an authentication token using OAuth2 M2M.
-    requestBody:
-      required: true
-      content:
-        application/x-www-form-urlencoded:
-          schema:
-            type: object
-            properties:
-              client_id:
-                type: string
-                description: The client ID provided by the authentication server.
-              client_secret:
-                type: string
-                description: The client secret provided by the authentication server.
-            required:
-              - client_id
-              - client_secret
-    responses:
-      '200':
-        description: Successful response with authentication token.
+    post:
+      tags: [Authentication]
+      summary: Obtain an authentication token using OAuth2 M2M.
+      requestBody:
+        required: true
         content:
-          application/json:
+          application/x-www-form-urlencoded:
             schema:
               type: object
               properties:
-                access_token:
+                client_id:
                   type: string
-                  description: The access token for authentication.
-                token_type:
+                  description: The client ID provided by the authentication server.
+                client_secret:
                   type: string
-                  description: The type of the token (e.g., Bearer).
-                expires_in:
-                  type: integer
-                  description: The duration in seconds for which the token is valid.
-      '401':
-        description: Unauthorized due to invalid client credentials.
-      '500':
-        description: Internal server error.
+                  description: The client secret provided by the authentication server.
+              required:
+                - client_id
+                - client_secret
+      responses:
+        '200':
+          description: Successful response with authentication token.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                    description: The access token for authentication.
+                  token_type:
+                    type: string
+                    description: The type of the token (e.g., Bearer).
+                  expires_in:
+                    type: integer
+                    description: The duration in seconds for which the token is valid.
+        '401':
+          description: Unauthorized due to invalid client credentials.
+        '500':
+          description: Internal server error.
   /v1/payments:
     post:
       tags: [Payments]
@@ -92,7 +93,22 @@ paths:
         required: true
         content:
           application/json:
-                
+            schema:
+              type: object
+              properties:
+                amount:
+                  type: number
+                  description: The amount to be paid.
+                currency:
+                  type: string
+                  description: The currency of the payment.
+                recipient:
+                  type: string
+                  description: The recipient of the payment.
+              required:
+                - amount
+                - currency
+                - recipient
       responses:
         '202':
           description: Payment request created successfully "QUEUED".
@@ -121,13 +137,13 @@ paths:
           description: Bearer token for authentication.
           schema:
             type: string
-        - in: query
-          name: id
+        - name: id
+          in: query
           schema:
             type: string
           required: true
           description: The unique identifier of the payment to retrieve.
-      responses: 
+      responses:
         '200':
           description: Successful response with payment status.
           content:
@@ -141,13 +157,13 @@ paths:
                   status:
                     type: string
                     description: The current status of the payment (e.g., CREATED, SETTLED, FAILED).
-
         '401':
           description: Unauthorized due to missing or invalid authentication token.
         '404':
           description: Payment not found with the provided ID.
         '500':
           description: Internal server error.
+
 components:
   securitySchemes:
     OAuth2:
