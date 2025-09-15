@@ -81,13 +81,13 @@ paths:
     post:
       tags: [Payments]
       summary: Create a new payment request.
-      headers:
+      parameters:
         - name: Authorization
           in: header
           required: true
           description: Bearer token for authentication.
           schema:
-            type: string 
+            type: string
       requestBody:
         required: true
         content:
@@ -114,14 +114,13 @@ paths:
     get:
       tags: [Payments]
       summary: Retrieve the status of an existing payment.
-      headers:
+      parameters:
         - name: Authorization
           in: header
           required: true
           description: Bearer token for authentication.
           schema:
             type: string
-      parameters:
         - in: query
           name: id
           schema:
