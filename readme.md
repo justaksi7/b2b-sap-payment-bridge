@@ -32,4 +32,4 @@ successful.
 
 
 ## OpenAPI Specification
-  [View OpenAPI Spec](./openapi.yaml)
+  [View OpenAPI Spec](https://code.fbi.h-da.de/aksel.kenanov/visual-computing-ak/-/blob/master/openapi.yaml?ref_type=heads)
