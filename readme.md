@@ -31,5 +31,12 @@ successful.
 - AWS RDS Databases: Payments Core, Partner Config
 
 
-## OpenAPI Specification
-  [View OpenAPI Spec](https://code.fbi.h-da.de/aksel.kenanov/visual-computing-ak/-/blob/master/openapi.yaml?ref_type=heads)
+## OpenAPI REST API endpoints specification
+
+### You can view the REST API endpoints documentation by clicking on the link below:
+  [View OpenAPI spec](https://code.fbi.h-da.de/aksel.kenanov/visual-computing-ak/-/blob/master/openapi.yaml?ref_type=heads)
+  
+## AsyncAPI events specification
+
+### You can view the AsyncAPI events documentation by clicking on the linkt below:
+  [View the AsyncAPI spec](https://justaksi7.github.io/b2b-sap-payment-bridge/)
