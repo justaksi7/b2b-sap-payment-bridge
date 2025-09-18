@@ -1,0 +1,627 @@
+asyncapi: 3.0.0
+info:
+  title: SAP Payment Bridge
+  version: 1.0.0
+  description: |
+    SAP Payment Bridge Events Documentation
+defaultContentType: sqs-message
+servers:
+  POST-SQS:
+    host: sqs.eu-central-1.amazonaws.com
+    protocol: aws-sqs
+    pathname: /123456789012/POST-SQS
+    description: AWS SQS Queue        for storing Payment POST Requests
+  Worker-SQS:
+    host: sqs.eu-central-1.amazonaws.com
+    protocol: aws-sqs
+    pathname: /123456789012/WORKER-SQS
+    description: AWS SQS Queue for storing PaymentCreated Events
+  Webhook-SQS:
+    host: sqs.eu-central-1.amazonaws.com
+    protocol: aws-sqs
+    pathname: /123456789012/WEBHOOK-SQS
+    description: >-
+      AWS SQS Queue for storing PaymentCreated, PaymentSettled and PaymentFailed
+      Events
+  Logger-SQS:
+    host: sqs.eu-central-1.amazonaws.com
+    protocol: aws-sqs
+    pathname: /123456789012/Logger-SQS
+    description: AWS SQS Queue for storing Logs
+  Request Dispatcher:
+    host: lambda.eu-central-1.amazonaws.com/2015-03-31/functions/RequestDispatcher
+    protocol: aws-lambda
+    description: >-
+      AWS Lambda that receives HTTP Requests from the Gateway. If the Request is
+      of type GET it returns the requested Payment information. If it is of type
+      POST it writes into the POST-SQS and returns 202 Accepted with 'QUEUED'
+  Worker Lambda:
+    host: lambda.eu-central-1.amazonaws.com
+    protocol: aws-lambda
+    pathname: /2015-03-31/functions/WorkerLambda/invocations
+    description: >-
+      AWS Lambda Worker Function that gets triggerd by the Worker-SQS and
+      receives PaymentCreated events to transfer them to SAP. It changes the
+      status of the Payment in the Payments Core database and creates either a
+      PaymentSettled outbox event or PaymentFailed outbox event depending on the
+      SAP response.
+  Event Dispatcher:
+    host: lambda.eu-central-1.amazonaws.com
+    protocol: aws-lambda
+    pathname: /2015-03-31/functions/EventDispatcher/invocations
+    description: >-
+      AWS Lambda Event Dispatcher function that queries the Payments Core
+      database outbox event table and Partner Config database. It is
+      periodically invoked by an Event Bridge Scheduler and it dispatches the
+      outbox events to the Worker-SQS and Webhook-SQS
+  Webhook Lambda:
+    host: lambda.eu-central-1.amazonaws.com
+    protocol: aws-lambda
+    pathname: /2015-03-31/functions/WebhookLambda/invocations
+    description: >-
+      AWS Lambda Webhook function that is triggered by the Webhook-SQS it signs
+      the messages from the queue and sends them to the partner specific webhook
+      URLs.
+  Logger Lambda:
+    host: lambda.eu-central-1.amazonaws.com
+    protocol: aws-lambda
+    pathname: /2015-03-31/functions/LoggerLambda/invocations
+    description: AWS Lambda Logger that transfers the logs to Cloud Watch, Data Dog etc.
+  Validation Lambda:
+    host: lambda.eu-central-1.amazonaws.com
+    protocol: aws-lambda
+    pathname: /2015-03-31/functions/ValidationLambda/invocations
+    description: >-
+      AWS Lambda Validator function that tries to ged a validation for partner
+      payment requests from SAP. It is triggered by the POST-SQS. Depending ot
+      the SAP response it either creates a payment and a PaymentCreated outbox
+      event or only a PaymentFailed outbox event in to the Payments Core
+      database and it also stores the partner configuration in the Partner
+      Config database.
+  Payments Core:
+    host: rds.eu-central-1.amazonaws.com
+    protocol: aws-rds
+    pathname: /123456789012/payments-core-db
+    description: AWS RDS Payments Core Database with 2 tables - payments and outbox events.
+  Partner Config:
+    host: rds.eu-central-1.amazonaws.com
+    protocol: aws-rds
+    pathname: /123456789012/partner-config-db
+    description: >-
+      AWS RDS Partner Configuration Database it stores partner configurations
+      such as mapping rules, webhook URLs, webhook secrets etc.
+  eventbridge-scheduler:
+    host: aws.events.eu-central-1
+    protocol: aws-eventbridge
+    pathname: 123456789012:schedule/dispatcher-poll
+    description: >-
+      AWS EventBridge Scheduler, konfiguriert mit rate(30 seconds), triggert
+      Dispatcher Lambda.
+  DLQ-Example:
+    host: rds.eu-central-1.amazonaws.com
+    protocol: aws-sqs
+    pathname: /123456789012/dlq-example
+    description: >-
+      An example to showcase the transfer of events with status 'FAILED' to a
+      Dead Letter Queue.
+channels:
+  DLQ-Example:
+    address: DQL Example
+    description: >-
+      An example to showcase the transfer of 'FAILED' events to a Dead Letter
+      Queue.
+    servers:
+      - $ref: '#/servers/DLQ-Example'
+      - $ref: '#/servers/Webhook-SQS'
+    messages:
+      PaymentCreatedPartner:
+        $ref: '#/components/messages/PaymentCreatedPartner'
+  dispatcherPolling:
+    address: Event Dispatcher
+    description: Periodic trigger to start Dispatcher Lambda
+    servers:
+      - $ref: '#/servers/eventbridge-scheduler'
+      - $ref: '#/servers/Event Dispatcher'
+    messages:
+      SchedulerEvent:
+        $ref: '#/components/messages/schedulerEvent'
+  POST-SQS:
+    address: POST-SQS
+    servers:
+      - $ref: '#/servers/POST-SQS'
+      - $ref: '#/servers/Request Dispatcher'
+    messages:
+      PaymentPostRequestSAP:
+        $ref: '#/components/messages/PaymentPostRequestValidator'
+  Worker-SQS:
+    address: WORKER-SQS
+    servers:
+      - $ref: '#/servers/Worker-SQS'
+      - $ref: '#/servers/Worker Lambda'
+      - $ref: '#/servers/Event Dispatcher'
+    messages:
+      PaymentCreatedSAP:
+        $ref: '#/components/messages/PaymentCreatedSAP'
+  Webhook-SQS:
+    address: WEBHOOK-SQS
+    servers:
+      - $ref: '#/servers/Webhook-SQS'
+      - $ref: '#/servers/Webhook Lambda'
+      - $ref: '#/servers/Event Dispatcher'
+    messages:
+      PaymentCreatedPartner:
+        $ref: '#/components/messages/PaymentCreatedPartner'
+      PaymentSettledPartner:
+        $ref: '#/components/messages/PaymentSettledPartner'
+      PaymentFailedPartner:
+        $ref: '#/components/messages/PaymentFailedPartner'
+  Logger-SQS:
+    address: Logger-SQS
+    servers:
+      - $ref: '#/servers/Logger-SQS'
+      - $ref: '#/servers/Logger Lambda'
+      - $ref: '#/servers/Worker Lambda'
+      - $ref: '#/servers/Validation Lambda'
+      - $ref: '#/servers/Webhook Lambda'
+      - $ref: '#/servers/Request Dispatcher'
+    messages:
+      PaymentCreatedLogger:
+        $ref: '#/components/messages/PaymentCreatedLogger'
+      PaymentSettledLogger:
+        $ref: '#/components/messages/PaymentSettledLogger'
+      PaymentFailedLogger:
+        $ref: '#/components/messages/PaymentFailedLogger'
+      PaymentPostRequestLogger:
+        $ref: '#/components/messages/PaymentPostRequestLogger'
+      PaymentGetRequestLogger:
+        $ref: '#/components/messages/PaymentGetRequestLogger'
+operations:
+  httpToRequestDispatcher:
+    action: send
+    channel:
+      $ref: '#/channels/POST-SQS'
+    summary: HTTP requests are received by RequestDispatcher and written to POST-SQS
+  postSqsToValidationLambda:
+    action: receive
+    channel:
+      $ref: '#/channels/POST-SQS'
+    summary: >-
+      ValidationLambda processes messages from POST-SQS, validates them, and
+      writes to PaymentsCore DB
+  eventDispatcherToWorkerSqs:
+    action: send
+    channel:
+      $ref: '#/channels/Worker-SQS'
+    summary: >-
+      EventDispatcher reads outbox events from PaymentsCore and writes to both
+      Worker-SQS.
+  workerSqsToWorkerLambda:
+    action: receive
+    channel:
+      $ref: '#/channels/Worker-SQS'
+    summary: WorkerLambda processes messages from Worker-SQS and sends them to SAP
+  eventDispatcherToWebhookSqs:
+    action: send
+    channel:
+      $ref: '#/channels/Webhook-SQS'
+    summary: >-
+      Event Dispatcher queries the Payments Core database and sends Outbox
+      Events to the Webhook SQS.
+  webhookSqsToWebhookLambda:
+    action: receive
+    channel:
+      $ref: '#/channels/Webhook-SQS'
+    summary: >-
+      WebhookLambda processes messages from Webhook-SQS and sends them to
+      partner webhook URLs
+  lambdasToLoggerSqs:
+    action: send
+    channel:
+      $ref: '#/channels/Logger-SQS'
+    summary: >-
+      Request Dispatcher, Validation Lambda, Worker Lambda and Webhook Lambda
+      write log messages to the Logger-SQS.
+  loggerSqsToLoggerLambda:
+    action: receive
+    channel:
+      $ref: '#/channels/Logger-SQS'
+    summary: >-
+      Logger-SQS sends log messages to the Logger Lambda and the Logger Lambda
+      distributes the logs to the specific platforms.
+  eventBridgeSchedulerToEventDispatcher:
+    action: receive
+    channel:
+      $ref: '#/channels/dispatcherPolling'
+    summary: >-
+      The EventBridge Scheduler triggers the Event Dispatcher Lambda
+      periodically every x seconds.
+  dlqExmapleAction:
+    action: send
+    channel:
+      $ref: '#/channels/DLQ-Example'
+    summary: >-
+      Every SQS queue publishes the messages that have failed to be processed to
+      its dedicated DLQ and the DLQ raises alert on the monitoring platform e.g.
+      Cloud Watch.
+components:
+  schemas:
+    WebhookHeaders:
+      type: object
+      properties:
+        host:
+          type: string
+          example: example.com
+        user-agent:
+          type: string
+          example: curl/7.79.1
+        accept:
+          type: string
+          example: '*/*'
+        myapp-hmac-sha1:
+          type: string
+          example: f237e4a4062590a674b0adc1e84614196aae79f4
+        myapp-api-key:
+          type: string
+          format: uuid
+          example: 90B649F2-70F2-4180-95BC-951F5D832F0D
+        content-type:
+          type: string
+          enum:
+            - application/json
+          example: application/json
+        content-length:
+          type: integer
+          example: 188
+      required:
+        - myapp-hmac-sha1
+        - myapp-api-key
+        - content-type
+        - content-length
+    WebhookPayload:
+      type: object
+      properties:
+        webhookPayload:
+          type: object
+      additionalProperties: false
+  messages:
+    WebhookMessage:
+      title: WebhookSchema
+      name: WebhookSchema
+      contentType: application / json
+      headers:
+        $ref: '#/components/schemas/WebhookHeaders'
+      payload:
+        $ref: '#/components/schemas/WebhookPayload'
+    PaymentPostRequestLogger:
+      name: PaymentPostRequestLogger
+      title: Logger Payment POST Request
+      summary: >-
+        Logging messages for partner requests that are modified to expose
+        minimal partner PII.
+      payload:
+        type: object
+        additionalProperties: false
+        properties:
+          idempotencyKey:
+            type: string
+            format: uuid
+            example: company1order2
+          createdAt:
+            type: string
+            format: date-time
+            example: 2025-12-12-15:15
+          timestamp:
+            type: string
+            format: date-time
+            example: 2025-12-12-15:15
+        required:
+          - idempotencyKey
+          - timestamp
+          - createdAt
+    PaymentGetRequestLogger:
+      name: PaymentGetRequestLogger
+      title: Logger Payment GET Request
+      summary: >-
+        Logging messages for partner requests that are modified to expose
+        minimal partner PII.
+      payload:
+        type: object
+        additionalProperties: false
+        properties:
+          idempotencyKey:
+            type: string
+            format: uuid
+            example: company1order2
+          createdAt:
+            type: string
+            format: date-time
+            example: 2025-12-12-15:15
+          timestamp:
+            type: string
+            format: date-time
+            example: 2025-12-12-15:15
+        required:
+          - idempotencyKey
+          - timestamp
+          - createdAt
+    PaymentCreatedLogger:
+      name: PaymentCreatedLogger
+      title: Logger PaymentCreated event.
+      summary: >-
+        Logging messages for partner request that are modified to expose minimal
+        partner PII.
+      payload:
+        type: object
+        additionalProperties: false
+        properties:
+          idempotencyKey:
+            type: string
+            format: uuid
+            example: company1order2
+          createdAt:
+            type: string
+            format: date-time
+            example: 2025-12-12-15:15
+          updatedAt:
+            type: string
+            format: date-time
+            example: 2025-12-12-15:15
+          timestamp:
+            type: string
+            format: date-time
+            example: 2025-12-12-15:15
+          sapStatusInfo:
+            type: string
+            example: Validated by sap with status code 2xx.
+          partnerStatusInfo:
+            type: string
+            example: Delivered to partner 2xx / failed to deliver 4xx / 5xx / in queue.
+        required:
+          - idempotencyKey
+          - timestamp
+          - createdAt
+          - sapStatusInfo
+          - partnerStatusInfo
+    PaymentSettledLogger:
+      name: PaymentSettledLogger
+      title: Logger PaymentSettled event.
+      summary: >-
+        Logging messages for partner request that are modified to expose minimal
+        partner PII.
+      payload:
+        type: object
+        additionalProperties: false
+        properties:
+          idempotencyKey:
+            type: string
+            format: uuid
+            example: company1order2
+          createdAt:
+            type: string
+            format: date-time
+            example: 2025-12-12-15:15
+          updatedAt:
+            type: string
+            format: date-time
+            example: 2025-12-12-15:15
+          timestamp:
+            type: string
+            format: date-time
+            example: 2025-12-12-15:15
+          sapStatusInfo:
+            type: string
+            example: Acknowledged by sap with status code 2xx.
+          partnerStatusInfo:
+            type: string
+            example: Delivered to partner 2xx / failed to deliver 4xx / 5xx / in queue.
+        required:
+          - idempotencyKey
+          - timestamp
+          - createdAt
+          - sapStatusInfo
+          - partnerStatusInfo
+    PaymentFailedLogger:
+      name: PaymentFaiedLogger
+      title: Logger PaymentFailed event.
+      summary: >-
+        Logging messages for partner request that are modified to expose minimal
+        partner PII.
+      payload:
+        type: object
+        additionalProperties: false
+        properties:
+          idempotencyKey:
+            type: string
+            format: uuid
+            example: company1order2
+          createdAt:
+            type: string
+            format: date-time
+            example: 2025-12-12-15:15
+          updatedAt:
+            type: string
+            format: date-time
+            example: 2025-12-12-15:15
+          timestamp:
+            type: string
+            format: date-time
+            example: 2025-12-12-15:15
+          sapStatusInfo:
+            type: string
+            example: Validation failed 4xx / SAP down 5xx.
+          partnerStatusInfo:
+            type: string
+            example: Delivered to partner 2xx / failed to deliver 4xx / 5xx / in queue.
+        required:
+          - idempotencyKey
+          - timestamp
+          - createdAt
+          - sapStatusInfo
+          - partnerStatusInfo
+    PaymentPostRequestValidator:
+      name: PaymentPostRequestValidator
+      title: Payment POST Request Validator
+      summary: >-
+        Initial payment POST request received via HTTP and delivered to the
+        Validation Lambda
+      payload:
+        type: object
+        properties:
+          idempotencyKey:
+            type: string
+            format: uuid
+            example: company1order2
+          rawRequestBody:
+            type: object
+            description: The actual HTTP-Request body from the partner request.
+    PaymentCreatedSAP:
+      name: PaymentCreatedSAP
+      title: Payment Created Event SAP
+      summary: >-
+        Written into Outbox when a new payment is validated and it is processed
+        by Worker Lambda
+      payload:
+        type: object
+        properties:
+          idempotencyKey:
+            type: string
+            format: uuid
+            example: company1order2
+          paymentData:
+            type: object
+            description: The payment data from the partner request.
+          mappingRules:
+            type: object
+            description: Partner mapping rules for SAP
+          createdAt:
+            type: string
+            format: date-time
+            example: 01-01-2001-12:12:12
+          updatedAt:
+            type: string
+            format: date-time
+            example: 01-01-2001-12:12:12
+        required:
+          - idempotencyKey
+          - paymentData
+          - mappingRules
+    PaymentSettledPartner:
+      name: PaymentSettledPartner
+      title: Payment Settled Event Partner
+      summary: >-
+        Written into Outbox when a new payment is validated and it is processed
+        by Webhook Lambda.
+      payload:
+        type: object
+        properties:
+          idempotencyKey:
+            type: string
+            format: uuid
+            example: company1order2
+          createdAt:
+            type: string
+            format: date-time
+            example: 01-01-2001-12:12:12
+          updatedAt:
+            type: string
+            format: date-time
+            example: 01-01-2001-12:12:12
+          sapStatusInfo:
+            type: string
+            example: Acknowledged by SAP 2xx.
+        required:
+          - idempotencyKey
+          - createdAt
+          - sapStatusInfo
+    PaymentCreatedPartner:
+      name: PaymentCreatedPartner
+      title: Payment Created Event Partner
+      summary: >-
+        Written into Outbox when a new payment is validated and it is processed
+        by Webhook Lambda.
+      payload:
+        type: object
+        properties:
+          idempotencyKey:
+            type: string
+            format: uuid
+            example: company1order2
+          createdAt:
+            type: string
+            format: date-time
+            example: 01-01-2001-12:12:12
+          updatedAt:
+            type: string
+            format: date-time
+            example: 01-01-2001-12:12:12
+          sapStatusInfo:
+            type: string
+            example: Validated by SAP 2xx.
+        required:
+          - idempotencyKey
+          - createdAt
+          - sapStatusInfo
+    PaymentFailedPartner:
+      name: PaymentFailedPartner
+      title: Payment Failed Event Partner
+      summary: >-
+        Written into Outbox when a new payment is validated and it is processed
+        by Webhook Lambda.
+      payload:
+        type: object
+        properties:
+          idempotencyKey:
+            type: string
+            format: uuid
+            example: company1order2
+          createdAt:
+            type: string
+            format: date-time
+            example: 01-01-2001-12:12:12
+          updatedAt:
+            type: string
+            format: date-time
+            example: 01-01-2001-12:12:12
+          sapStatusInfo:
+            type: string
+            example: Validation failed 4xx / SAP down 5xx.
+        required:
+          - idempotencyKey
+          - createdAt
+          - sapStatusInfo
+    schedulerEvent:
+      name: SchedulerEvent
+      title: EventBridge Scheduled Event
+      payload:
+        type: object
+        properties:
+          version:
+            type: string
+            example: '0'
+          id:
+            type: string
+            description: Unique event ID
+            example: 1234-5678-90
+          source:
+            type: string
+            example: aws.events
+          detail-type:
+            type: string
+            example: Scheduled Event
+          account:
+            type: string
+            example: '123456789012'
+          time:
+            type: string
+            format: date-time
+          region:
+            type: string
+            example: eu-central-1
+          resources:
+            type: array
+            items:
+              type: string
+              example: arn:aws:events:eu-central-1:123456789012:rule/dispatcher-poll
+          detail:
+            type: object
+            description: Usually empty for scheduled events
