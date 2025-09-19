@@ -114,8 +114,8 @@ channels:
       - $ref: '#/servers/DLQ-Example'
       - $ref: '#/servers/Webhook-SQS'
     messages:
-      PaymentCreatedPartner:
-        $ref: '#/components/messages/PaymentCreatedPartner'
+      PaymentEvent:
+        $ref: '#/components/messages/PaymentEvent'
   dispatcherPolling:
     address: Event Dispatcher
     description: Periodic trigger to start Dispatcher Lambda
@@ -149,12 +149,8 @@ channels:
       - $ref: '#/servers/Webhook Lambda'
       - $ref: '#/servers/Event Dispatcher'
     messages:
-      PaymentCreatedPartner:
-        $ref: '#/components/messages/PaymentCreatedPartner'
-      PaymentSettledPartner:
-        $ref: '#/components/messages/PaymentSettledPartner'
-      PaymentFailedPartner:
-        $ref: '#/components/messages/PaymentFailedPartner'
+      PaymentEvent:
+        $ref: '#/components/messages/PaymentEvent'
   Logger-SQS:
     address: Logger-SQS
     servers:
@@ -166,15 +162,11 @@ channels:
       - $ref: '#/servers/Request Dispatcher'
     messages:
       PaymentCreatedLogger:
-        $ref: '#/components/messages/PaymentCreatedLogger'
-      PaymentSettledLogger:
-        $ref: '#/components/messages/PaymentSettledLogger'
-      PaymentFailedLogger:
-        $ref: '#/components/messages/PaymentFailedLogger'
-      PaymentPostRequestLogger:
         $ref: '#/components/messages/PaymentPostRequestLogger'
       PaymentGetRequestLogger:
         $ref: '#/components/messages/PaymentGetRequestLogger'
+      PaymentEvent:
+        $ref: '#/components/messages/PaymentEvent'
 operations:
   httpToRequestDispatcher:
     action: send
@@ -300,7 +292,7 @@ components:
         minimal partner PII.
       payload:
         type: object
-        additionalProperties: false
+        additionalProperties: true
         properties:
           idempotencyKey:
             type: string
@@ -310,13 +302,8 @@ components:
             type: string
             format: date-time
             example: 2025-12-12-15:15
-          timestamp:
-            type: string
-            format: date-time
-            example: 2025-12-12-15:15
         required:
           - idempotencyKey
-          - timestamp
           - createdAt
     PaymentGetRequestLogger:
       name: PaymentGetRequestLogger
@@ -326,138 +313,68 @@ components:
         minimal partner PII.
       payload:
         type: object
-        additionalProperties: false
+        additionalProperties: true
         properties:
           idempotencyKey:
             type: string
             format: uuid
             example: company1order2
           createdAt:
-            type: string
-            format: date-time
-            example: 2025-12-12-15:15
-          timestamp:
             type: string
             format: date-time
             example: 2025-12-12-15:15
         required:
           - idempotencyKey
-          - timestamp
           - createdAt
-    PaymentCreatedLogger:
-      name: PaymentCreatedLogger
-      title: Logger PaymentCreated event.
+    PaymentEvent:
+      name: PaymentEvent
+      title: Paymen Event
       summary: >-
-        Logging messages for partner request that are modified to expose minimal
-        partner PII.
+        There are 3 kind of payment events that can be logged: PaymentCreated,
+        PaymentSettled and PaymentFailed. This message is being processed by
+        both the Logger queue and the Webhook Service queue.
       payload:
-        type: object
-        additionalProperties: false
         properties:
-          idempotencyKey:
+          id:
             type: string
             format: uuid
-            example: company1order2
+            example: uuid1234
+          idempKey:
+            type: string
+            format: uuid
+            example: company12order34
+            description: The unique correlation id
+          eventType:
+            type: string
+            enum:
+              - PaymentCreated
+              - PaymentSettled
+              - PaymentFailed
+            example: PaymentCreated
+          sapStatus:
+            type: object
+            properties:
+              status:
+                type: string
+                enum:
+                  - PENDING
+                  - QUEUED
+                  - SETTLED
+                  - FAILED
+                example: PENDING
+                description: This is the status of the Payment.
+              descriptioN:
+                type: string
+                example: Payment created.
+                description: This describes the status. It can be an error / response code.
           createdAt:
             type: string
             format: date-time
-            example: 2025-12-12-15:15
+            example: 2025-12-12-15:15:15
           updatedAt:
             type: string
             format: date-time
-            example: 2025-12-12-15:15
-          timestamp:
-            type: string
-            format: date-time
-            example: 2025-12-12-15:15
-          sapStatusInfo:
-            type: string
-            example: Validated by sap with status code 2xx.
-          partnerStatusInfo:
-            type: string
-            example: Delivered to partner 2xx / failed to deliver 4xx / 5xx / in queue.
-        required:
-          - idempotencyKey
-          - timestamp
-          - createdAt
-          - sapStatusInfo
-          - partnerStatusInfo
-    PaymentSettledLogger:
-      name: PaymentSettledLogger
-      title: Logger PaymentSettled event.
-      summary: >-
-        Logging messages for partner request that are modified to expose minimal
-        partner PII.
-      payload:
-        type: object
-        additionalProperties: false
-        properties:
-          idempotencyKey:
-            type: string
-            format: uuid
-            example: company1order2
-          createdAt:
-            type: string
-            format: date-time
-            example: 2025-12-12-15:15
-          updatedAt:
-            type: string
-            format: date-time
-            example: 2025-12-12-15:15
-          timestamp:
-            type: string
-            format: date-time
-            example: 2025-12-12-15:15
-          sapStatusInfo:
-            type: string
-            example: Acknowledged by sap with status code 2xx.
-          partnerStatusInfo:
-            type: string
-            example: Delivered to partner 2xx / failed to deliver 4xx / 5xx / in queue.
-        required:
-          - idempotencyKey
-          - timestamp
-          - createdAt
-          - sapStatusInfo
-          - partnerStatusInfo
-    PaymentFailedLogger:
-      name: PaymentFaiedLogger
-      title: Logger PaymentFailed event.
-      summary: >-
-        Logging messages for partner request that are modified to expose minimal
-        partner PII.
-      payload:
-        type: object
-        additionalProperties: false
-        properties:
-          idempotencyKey:
-            type: string
-            format: uuid
-            example: company1order2
-          createdAt:
-            type: string
-            format: date-time
-            example: 2025-12-12-15:15
-          updatedAt:
-            type: string
-            format: date-time
-            example: 2025-12-12-15:15
-          timestamp:
-            type: string
-            format: date-time
-            example: 2025-12-12-15:15
-          sapStatusInfo:
-            type: string
-            example: Validation failed 4xx / SAP down 5xx.
-          partnerStatusInfo:
-            type: string
-            example: Delivered to partner 2xx / failed to deliver 4xx / 5xx / in queue.
-        required:
-          - idempotencyKey
-          - timestamp
-          - createdAt
-          - sapStatusInfo
-          - partnerStatusInfo
+            example: 2025-12-12-15:15:15
     PaymentPostRequestValidator:
       name: PaymentPostRequestValidator
       title: Payment POST Request Validator
@@ -483,16 +400,28 @@ components:
       payload:
         type: object
         properties:
-          idempotencyKey:
+          id:
             type: string
             format: uuid
             example: company1order2
+            description: >-
+              The unique identifier that is also the idempotency key and
+              correlation id for the logs.
           paymentData:
             type: object
             description: The payment data from the partner request.
           mappingRules:
             type: object
             description: Partner mapping rules for SAP
+          status:
+            type: string
+            enum:
+              - PENDING
+              - QUEUED
+              - SETTLED
+              - FAILED
+            example: QUEUED
+            description: This is the current status of the payment.
           createdAt:
             type: string
             format: date-time
@@ -505,90 +434,6 @@ components:
           - idempotencyKey
           - paymentData
           - mappingRules
-    PaymentSettledPartner:
-      name: PaymentSettledPartner
-      title: Payment Settled Event Partner
-      summary: >-
-        Written into Outbox when a new payment is validated and it is processed
-        by Webhook Lambda.
-      payload:
-        type: object
-        properties:
-          idempotencyKey:
-            type: string
-            format: uuid
-            example: company1order2
-          createdAt:
-            type: string
-            format: date-time
-            example: 01-01-2001-12:12:12
-          updatedAt:
-            type: string
-            format: date-time
-            example: 01-01-2001-12:12:12
-          sapStatusInfo:
-            type: string
-            example: Acknowledged by SAP 2xx.
-        required:
-          - idempotencyKey
-          - createdAt
-          - sapStatusInfo
-    PaymentCreatedPartner:
-      name: PaymentCreatedPartner
-      title: Payment Created Event Partner
-      summary: >-
-        Written into Outbox when a new payment is validated and it is processed
-        by Webhook Lambda.
-      payload:
-        type: object
-        properties:
-          idempotencyKey:
-            type: string
-            format: uuid
-            example: company1order2
-          createdAt:
-            type: string
-            format: date-time
-            example: 01-01-2001-12:12:12
-          updatedAt:
-            type: string
-            format: date-time
-            example: 01-01-2001-12:12:12
-          sapStatusInfo:
-            type: string
-            example: Validated by SAP 2xx.
-        required:
-          - idempotencyKey
-          - createdAt
-          - sapStatusInfo
-    PaymentFailedPartner:
-      name: PaymentFailedPartner
-      title: Payment Failed Event Partner
-      summary: >-
-        Written into Outbox when a new payment is validated and it is processed
-        by Webhook Lambda.
-      payload:
-        type: object
-        properties:
-          idempotencyKey:
-            type: string
-            format: uuid
-            example: company1order2
-          createdAt:
-            type: string
-            format: date-time
-            example: 01-01-2001-12:12:12
-          updatedAt:
-            type: string
-            format: date-time
-            example: 01-01-2001-12:12:12
-          sapStatusInfo:
-            type: string
-            example: Validation failed 4xx / SAP down 5xx.
-        required:
-          - idempotencyKey
-          - createdAt
-          - sapStatusInfo
     schedulerEvent:
       name: SchedulerEvent
       title: EventBridge Scheduled Event
