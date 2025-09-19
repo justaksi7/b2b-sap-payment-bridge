@@ -47,7 +47,35 @@ successful.
 **The Payments Core database consists of 3 different tables: payments,  workerOutbox and webhookOutbox**
 
 **payments table:**
-|id = string (uuid)|paymentDetails = JSONB object|status = string enum (QUEUED, FAILED, SETTLED) |
-|------------------|-----------------------------|-----------------------------------------------|
-|asd               |asd                          |asd                                            |
+|id = string (uuid)|paymentDetails = JSONB object|status = string enum (QUEUED, FAILED, SETTLED)|createdAt = timestamp|updatedAt = timestamp|
+|------------------|-----------------------------|----------------------------------------------|---------------------|---------------------|
+|company12order34 |{
+  "paymentDetails": {
+    "transactionId": "txn_789456123",
+    "amount": 99.99,
+    "currency": "EUR",
+    "paymentMethod": "credit_card",
+    "paymentMethodDetails": {
+      "cardType": "visa",
+      "lastFourDigits": "1234",
+      "expirationDate": "12/2025"
+    },
+    "billingAddress": {
+      "firstName": "Max",
+      "lastName": "Mustermann",
+      "street": "Musterstraße 123",
+      "city": "Musterstadt",
+      "postalCode": "12345",
+      "country": "DE"
+    },
+    "status": "completed",
+    "createdAt": "2023-10-05T14:48:00.000Z",
+    "updatedAt": "2023-10-05T14:50:30.000Z",
+    "metadata": {
+      "orderId": "ord_123456",
+      "customerId": "cust_789",
+      "invoiceNumber": "INV-2023-1005"
+    }
+  }
+}                          |asd                                           |asd                  |asd                  |
 
