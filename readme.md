@@ -24,6 +24,13 @@ successful.
     Logs, Software Metrics, etc.
 
 ## Architecture Design Diagrams.
+---
+
+> 📌 You can copy the excalidraw code from the file below and paste it on [Excalidraw](https://excalidraw.com/) for a better resolution.
+> 
+> 📌 [Click here to open the excalidraw file.](./Excalidraw-12-09-2025-Final-Version.excalidraw)
+---
+
 -<img src="/images/architecture-diagram.png" width="screen" height="screen">
 - Gateway is an AWS API Gateway
 - AWS Lambda Fuctions: Request Dispatcher, Event Dispatcher, Worker Lambda, Webhook Lamba, Logger Lambda, Validation Lambda
