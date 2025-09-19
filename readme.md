@@ -24,7 +24,7 @@ successful.
     Logs, Software Metrics, etc.
 
 ## Architecture Design Diagrams.
--<img src="/images/architecture-diagram.svg" width="screen" height="screen">
+-<img src="/images/architecture-diagram.png" width="screen" height="screen">
 - Gateway is an AWS API Gateway
 - AWS Lambda Fuctions: Request Dispatcher, Event Dispatcher, Worker Lambda, Webhook Lamba, Logger Lambda, Validation Lambda
 - AWS SQS Queues: POST SQS, Worker SQS, Webhook SQS, Logger SQS
