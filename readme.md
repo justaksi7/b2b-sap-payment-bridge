@@ -52,11 +52,11 @@ successful.
 
 
 **payments table:**
-|id = `string (uuid)`|paymentDetails = `JSONB objet`|status = `string enum (QUEUED, FAILED, SETTLED)`|createdAt = `timestamp`|updatedAt = `timestamp`|
-|------------------|-----------------------------|----------------------------------------------|---------------------|---------------------|
-|company12order34 |{"paymentDetails":{} } |QUEUED |	1758264781  |	1758264781             |
-|...|...|...|...|...|
-|...|...|...|...|...|
+|id = `string (uuid)`|paymentDetails = `JSONB objet`|mappingRules = `JSONB object`|status = `string enum (QUEUED, FAILED, SETTLED)`|createdAt = `timestamp`|updatedAt = `timestamp`|
+|------------------|-----------------------------|----------------------------------------------|---------------------|---------------------|--------|
+|company12order34 |{"paymentDetails":{} } |{"mappingRules": {}}|QUEUED |	1758264781  |	1758264781             |
+|...|...|...|...|...|...|
+|...|...|...|...|...|...|
 
 
 **Keys and constraints:**
@@ -93,6 +93,7 @@ successful.
   }
 }
 ```
+- mappingRules = `JSONB object` - This is the object holding the partner mapping rules from SAP.
 - status = `string enum `- This is the status of the payment and it is a required column.
 - createdAt = `timestamp` - This is the `timestamp` of creation and it is required.
 - updatedAt = `timestamp` - This is the `timestamp` of the most recent update. It is optional when inserting a row into the table.
