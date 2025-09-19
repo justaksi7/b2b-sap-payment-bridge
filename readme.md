@@ -46,14 +46,25 @@ successful.
 
 **The Payments Core database consists of 3 different tables: payments,  workerOutbox and webhookOutbox**
 
+> 📌 Notice that the workerOutbox and webhookOutbox are representative of the event schemas.
+---
+> 📌 The workerOutbox table does not include an eventType column because it can only contain PaymentCreated events.
+
+
 **payments table:**
 |id = string (uuid)|paymentDetails = JSONB object|status = string enum (QUEUED, FAILED, SETTLED)|createdAt = timestamp|updatedAt = timestamp|
 |------------------|-----------------------------|----------------------------------------------|---------------------|---------------------|
 |company12order34 |{"paymentDetails":{} } |QUEUED |	1758264781  |	1758264781             |
+|...|...|...|...|...|
+|...|...|...|...|...|
 
-**Constraints and keys:**
 
-- id = string (uuid) - This is the primary key with unique constraint. It is a combination of the company identifier and the order identifier. a paymentDetails column could look like this for example: `{
+**Keys and constraints:**
+
+- id = string (uuid) - This is the primary key with unique constraint. It is a combination of the company identifier and the order identifier. It is also the idempotency key and the correlation id for the logs. 
+- paymentDetails = JSONB object - This is the object that holds the actual payment details. It is a required column. A paymentDetails column could look like this for example: 
+```
+{
   "paymentDetails": {
     "transactionId": "txn_789456123",
     "amount": 99.99,
@@ -80,9 +91,46 @@ successful.
       "invoiceNumber": "INV-2023-1005"
     }
   }
-}`
-- paymentDetails = JSONB object - This is the object that holds the actual payment details. It is a required column.
+}
+```
 - status = string enum - This is the status of the payment and it is a required column.
 - createdAt = timestamp - This is the timestamp of creation and it is required.
 - updatedAt = timestamp - This is the timestamp of the most recent update. It is optional when inserting a row into the table.
+
+**workerOutbox table:**
+| id = string (uuid) | mappingRules = JSONB object | status = string enum (PENDING, QUEUED, FAILED, SETTLED) | createdAt = timestamp | updatedAt = timestamp |
+|--------------------------|-----------------------------|---------------------|-----------------------|-----------------------|
+|company12order34|{"mappingRules": {}}|PENDING | 1758264781 | 1758264781|
+|company23order34|{"mappingRules": {}}|QUEUED |1758264781|1758264781|
+|company34order45|{"mappingRules": {}}|SETTLED|1758264781|1758264781|
+|company23order45|{"mappingRules": {}}|FAILED |1758264781|1758264781|
+**Keys and constraints:**
+
+- id = string (uuid) - This is the primary key with unique constraint. It is a combination of the company identifier and the order identifier. It is also the idempotency key and the correlation id for the logs. 
+- mappingRules = JSONB object - This object holds the mapping rules for the partner from SAP.
+- status = string enum (PENDING, QUEUED, SETTLED, FAILED) - This is the current status of the payment it can either be pending to be queued, queued, settled or failed.
+- createdAt = timestamp - This is the timestamp of creation and it is required.
+- updatedAt = timestamp - This is the timestamp of the most recent update. It is optional when inserting a row into the table.
+
+**webhookOutbox table:**
+| id = string (uuid) | idempKey = string (uuid) | eventType = string enum | sapStatus = JSONB object | deliveryStatus = JSONB object| createdAt = timestamp | updatedAt = timestamp|
+|--------------------|--------------------------|-------------------------|--------------------------|------------------------------|-----------------------|----------------------|
+| uuid1233 | company12order23 | PaymentCreated | {"status": "PENDING", "description": "payment created"}|{"status": "PENDING", "description": "notification created"}|1758264781|1758264781
+| uuid1233 | company12order23 | PaymentSettled | {"status": "SETTLED", "description": "SAP 4xx"}|{"status": "QUEUED", "description": "delivery in progress"}|1758264781|1758264781
+| uuid1233 | company12order45 | PaymentFailed | {"status": "FAILED", "description": "SAP 5xx"}|{"status": "FAILED", "description": "partner 5xx"}|1758264781|1758264781
+| uuid1233 | company12order45 | PaymentFailed | {"status": "FAILED", "description": "SAP 5xx"}|{"status": "DELIVERED", "description": "partner 2xx"}|1758264781|1758264781
+
+
+**Keys and constraints:**
+
+- id = string (uuid) - This is the unique id of the row and it is the primary key.
+- idempKey = string (uuid) - This is the correlation id for the logs, the idempotency key and the order identifier for the partner notifications.
+- eventType = string enum {PaymentCreated, PaymentSettled, PaymentFailed} it specifies the type of the event which is also the notification for the partner.
+- deliveryStatus = JSONB object - This is the delivery status of the netification. The "status" attribute can be: PENDING, QUEUED, FAILED or DELIVERED. The "description" attribute is the according description.
+- sapStatus = JSONB object - This is the current status of the payment and its description. The "status" attribute can be : PENDING, QUEUED, SETTLED or FAILED and the "description" attribute is the description.
+- createdAt = timestamp - This is the timestamp of creation and it is required.
+- updatedAt = timestamp - This is the timestamp of the most recent update. It is optional when inserting a row into the table.
+
+
+
 
