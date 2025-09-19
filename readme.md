@@ -1,4 +1,4 @@
-# Partner Payments Bridge
+# SAP - B2B-Partner Payments Bridge
 
 ## Goal
 
@@ -40,3 +40,14 @@ successful.
 ### In the following you will find the message brokerage channels documentation for this project including: process flow, event schemas and a Webhook example.
 ### You can view the AsyncAPI events documentation by clicking on the linkt below:
   [View the AsyncAPI spec](https://justaksi7.github.io/b2b-sap-payment-bridge/)
+
+## Data and Reliability
+### Payments Core database:
+
+**The Payments Core database consists of 3 different tables: payments,  workerOutbox and webhookOutbox**
+
+**payments table:**
+|id = string (uuid)|paymentDetails = JSONB object|status = string enum (QUEUED, FAILED, SETTLED) |
+|------------------|-----------------------------|-----------------------------------------------|
+|asd               |asd                          |asd                                            |
+
