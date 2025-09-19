@@ -49,5 +49,40 @@ successful.
 **payments table:**
 |id = string (uuid)|paymentDetails = JSONB object|status = string enum (QUEUED, FAILED, SETTLED)|createdAt = timestamp|updatedAt = timestamp|
 |------------------|-----------------------------|----------------------------------------------|---------------------|---------------------|
-|company12order34 |{"paymentDetails":{} }                          |QUEUED                                           |	1758264781                  |	1758264781             |
+|company12order34 |{"paymentDetails":{} } |QUEUED |	1758264781  |	1758264781             |
+
+**Constraints and keys:**
+
+- id = string (uuid) - This is the primary key with unique constraint. It is a combination of the company identifier and the order identifier. a paymentDetails column could look like this for example: `{
+  "paymentDetails": {
+    "transactionId": "txn_789456123",
+    "amount": 99.99,
+    "currency": "EUR",
+    "paymentMethod": "credit_card",
+    "paymentMethodDetails": {
+      "cardType": "visa",
+      "lastFourDigits": "1234",
+      "expirationDate": "12/2025"
+    },
+    "billingAddress": {
+      "firstName": "Max",
+      "lastName": "Mustermann",
+      "street": "Musterstraße 123",
+      "city": "Musterstadt",
+      "postalCode": "12345",
+      "country": "DE"
+    },
+    "createdAt": "2023-10-05T14:48:00.000Z",
+    "updatedAt": "2023-10-05T14:50:30.000Z",
+    "metadata": {
+      "orderId": "ord_123456",
+      "customerId": "cust_789",
+      "invoiceNumber": "INV-2023-1005"
+    }
+  }
+}`
+- paymentDetails = JSONB object - This is the object that holds the actual payment details. It is a required column.
+- status = string enum - This is the status of the payment and it is a required column.
+- createdAt = timestamp - This is the timestamp of creation and it is required.
+- updatedAt = timestamp - This is the timestamp of the most recent update. It is optional when inserting a row into the table.
 
