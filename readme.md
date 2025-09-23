@@ -31,7 +31,7 @@ successful.
 > 📌 [Click here to open the excalidraw file.](./Excalidraw-12-09-2025-Final-Version.excalidraw)
 ---
 
--<img src="/images/architecture-diagram.png" width="screen" height="screen">
+- <img src="/images/architecture-diagram.png" width="screen" height="screen">
 - Gateway is an AWS API Gateway
 - AWS Lambda Fuctions: Request Dispatcher, Event Dispatcher, Worker Lambda, Webhook Lamba, Logger Lambda, Validation Lambda
 - AWS SQS Queues: POST SQS, Worker SQS, Webhook SQS, Logger SQS
@@ -49,6 +49,9 @@ successful.
   [View the AsyncAPI spec](https://justaksi7.github.io/b2b-sap-payment-bridge/)
 
 ## Data and Reliability
+
+## Data
+
 ### Payments Core database:
 
 **The Payments Core database consists of 3 different tables: payments,  workerOutbox and webhookOutbox**
@@ -165,6 +168,31 @@ successful.
 `{"PaymentCreated": "URL", "PaymentSettled": "URL", "PaymentFailed": "URL"}`
 
 
+## Reliability
 
+**Duplication of a payment is prevented through:**
 
+- the `unique constraint` of the primary key `"id"` in the tables `payments` and `workerOutbox`. The `primary key` also has the role of an `idempotency key / deduplication key`.  It ensures that no two payments can share the samwe `id`.
 
+**Retries with exponential backoff:**
+- Retries with exponential backoff can be impleneted like this:
+
+- <img src="/images/retries.png" height="screen" width="screen">
+
+- Depending on the `ApproximateReceiveCount` the `MessageVisibility` can be changed so the message is visible after an exponential time has passed.
+- This approach can be used for both validating and processing of paymnets and the notification of partners.
+
+**Circuit breaker when SAP is overloaded or unreachable:**
+- The circuit breaker pattern can be implemented as in the example below:
+- <img src="/images/circuit-breaker.png" height="screen" width="screen">
+
+**Dead Letter Queue for messages can be implemented as in the example:**
+- <img src="/images/dlq.png">
+
+**Guarantee: once acknowledged, no data is lost and no duplicate payments reach SAP.**
+
+- The partner requests are acknowledged ONLY after a succesfull push to the SQS.
+- After a validation by SAP succeeds or fails a payment request is stored in the `Payments Core` database with its respective status.
+- The idempotency key `"id"` ensures that no duplicate payment requests are stored in the database and later on distributed to the services.
+- The AWS SQS are thread secure and they ensure that once a message is read by a consumer it is not visible for other consumers. So once a payment request is being processed by a worker resource it is not visible for other consumers.
+- Everything mentioned above is logged through a logger service and that ensures traceability across all services in the architecture.
