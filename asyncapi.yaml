@@ -6,6 +6,15 @@ info:
     SAP Payment Bridge Events Documentation
 defaultContentType: sqs-message
 servers:
+  Event Dispatcher SQS:
+    host: sqs.eu-central-1.amazonaws.com
+    protocol: aws-sqs
+    pathname: /123456789012/EventDispatcherSQS
+    description: >-
+      AWS SQS Queue for storing succesful validations by sap that invokes the
+      Event Dispatcher lambda after a specific batchSize or a batchWindow is
+      reached. The VAlidator Lambda and the Worker Lambda publish messages to
+      this Queue.
   POST-SQS:
     host: sqs.eu-central-1.amazonaws.com
     protocol: aws-sqs
@@ -52,7 +61,7 @@ servers:
     description: >-
       AWS Lambda Event Dispatcher function that queries the Payments Core
       database outbox event table and Partner Config database. It is
-      periodically invoked by an Event Bridge Scheduler and it dispatches the
+       invoked by the Event Dispatcher SQS and it dispatches the
       outbox events to the Worker-SQS and Webhook-SQS
   Webhook Lambda:
     host: lambda.eu-central-1.amazonaws.com
@@ -78,6 +87,22 @@ servers:
       event or only a PaymentFailed outbox event in to the Payments Core
       database and it also stores the partner configuration in the Partner
       Config database.
+  Health Check Lambda:
+    host: lambda.eu-central-1.amazonaws.com
+    protocol: aws-lambda
+    pathname: /2015-03-31/functions/HealthCheck/invocations
+    description: >-
+      AWS Lambda Health Check Function that is periodically by an EventBridge
+      Scheduler. It checks the health status of SAP and sends the metric to
+      CloudWatch
+  Circuit Controller Lambda:
+    host: lambda.eu-central-1.amazonaws.com
+    protocol: aws-lambda
+    pathname: /2015-03-31/functions/CircuitController/invocations
+    description: >-
+      AWS Lambda Circuit Controller Function that reacts to alarms raised by
+      CloudWatch and implements a Circuit Breaker Pattern by reducing,
+      increasing or setting the SQS Consumer Concurrency to 0.
   Payments Core:
     host: rds.eu-central-1.amazonaws.com
     protocol: aws-rds
@@ -105,6 +130,18 @@ servers:
       An example to showcase the transfer of events with status 'FAILED' to a
       Dead Letter Queue.
 channels:
+  Event Dispatcher SQS:
+    address: Event Dispatcher SQS
+    description: >-
+      The Validator Lambda and Worker Lambda publish messages to the Event
+      Dispatcher SQS and it triggers the Event Dispatcher Lambda.
+    servers:
+      - $ref: '#/servers/Event Dispatcher SQS'
+      - $ref: '#/servers/Validation Lambda'
+      - $ref: '#/servers/Worker Lambda'
+    messages:
+      EventDispatcherSQSMessage:
+        $ref: '#/components/messages/EventDispatcherSQSMessage'
   DLQ-Example:
     address: DQL Example
     description: >-
@@ -116,12 +153,12 @@ channels:
     messages:
       PaymentEvent:
         $ref: '#/components/messages/PaymentEvent'
-  dispatcherPolling:
-    address: Event Dispatcher
-    description: Periodic trigger to start Dispatcher Lambda
+  HealthCheckSchedule:
+    address: Health Check Lambda
+    description: Periodic trigger to invoke the Health Check service.
     servers:
       - $ref: '#/servers/eventbridge-scheduler'
-      - $ref: '#/servers/Event Dispatcher'
+      - $ref: '#/servers/Health Check Lambda'
     messages:
       SchedulerEvent:
         $ref: '#/components/messages/schedulerEvent'
@@ -220,13 +257,13 @@ operations:
     summary: >-
       Logger-SQS sends log messages to the Logger Lambda and the Logger Lambda
       distributes the logs to the specific platforms.
-  eventBridgeSchedulerToEventDispatcher:
+  HealthCheckSchedule:
     action: receive
     channel:
-      $ref: '#/channels/dispatcherPolling'
+      $ref: '#/channels/HealthCheckSchedule'
     summary: >-
-      The EventBridge Scheduler triggers the Event Dispatcher Lambda
-      periodically every x seconds.
+      The EventBridge Scheduler invokes the Health Check Lambda periodically
+      e.g. every x seconds.
   dlqExmapleAction:
     action: send
     channel:
@@ -235,6 +272,20 @@ operations:
       Every SQS queue publishes the messages that have failed to be processed to
       its dedicated DLQ and the DLQ raises alert on the monitoring platform e.g.
       Cloud Watch.
+  Event Dispatcher SQS Send:
+    action: send
+    channel:
+      $ref: '#/channels/Event Dispatcher SQS'
+    summary: >-
+      The Validation Lambda and the Worker Lambda publish messages to the Event
+      Dispatcher SQS.
+  Event Dispatcher SQS Receive:
+    action: receive
+    channel:
+      $ref: '#/channels/Event Dispatcher SQS'
+    summary: >-
+      The Event Dispatcher SQS invokes the Event Dispatcher Lambda after a
+      specific batch size is reached or a specific batch window has elapsed.
 components:
   schemas:
     WebhookHeaders:
@@ -466,7 +517,21 @@ components:
             type: array
             items:
               type: string
-              example: arn:aws:events:eu-central-1:123456789012:rule/dispatcher-poll
+              example: >-
+                arn:aws:events:eu-central-1:123456789012:rule/HealthCheckSchedule
           detail:
             type: object
             description: Usually empty for scheduled events
+    EventDispatcherSQSMessage:
+      name: EventDispatcherSQSMessage
+      title: Event Dispatcher SQS Message
+      payload:
+        type: object
+        properties:
+          messageId:
+            type: string
+            format: uuid
+            example: f12f-12gs
+          details:
+            type: string
+            example: PaymentFailed.
