@@ -196,3 +196,38 @@ successful.
 - The idempotency key `"id"` ensures that no duplicate payment requests are stored in the database and later on distributed to the services.
 - The AWS SQS are thread secure and they ensure that once a message is read by a consumer it is not visible for other consumers. So once a payment request is being processed by a worker resource it is not visible for other consumers.
 - Everything mentioned above is logged through a logger service and that ensures traceability across all services in the architecture.
+
+## Failure handling & runbooks
+
+**Runbook: SAP down - Validator failing to validate incoming payment requests:**
+> If SAP is down for a prolonged time the incoming payment requests will be eventually transfered from the POST-SQS queue to its corresponding DLQ after the maximum read coud is exceeded or the maximum retention tiome has elapsed. In such cases the runbook below can be used after SAP is healthy again.
+
+1. Consult with the operations department and SAP.
+2. Read the messages from the DLQ (either on the AWS platform or the logging platform).
+3. Depending on the decision of the operations department do one of the following steps:
+- A: Create a PaymentFailed outbox event in the Payments Core database for each DLQ message and all the partners will be notified automatically about the failure and they have to resend the payment requests. The payment process is nullified and it has to be initiated again by the partners.
+- B: Transfer all payment request messages from the DLQ back to the POST-SQS, empty the DLQ and the processing of the requests will proceed to replay automatically.
+- C: If there is a crisis scenario taking place at SAP consult with the operations department if the payment requests are still going to be stored in our system (increasing costs for the company) or a temporary shutdown of our system has to take place untill further notification from SAP in order to be cost efficient.
+
+**Runbook: SAP down - Worker failing to process already validated payment requests (PaymentCreated)**
+
+> If SAP is down for a prolonged time the payment requests that have already been validated are eventually going to be transfered from the Worker-SQS to its corresponding DLQ. This will happen either when the maximum retention time for the messages has elapsed or the maxumum read count for the messages is exceeded. In such cases the runbook below can be utilized:
+
+1. Consult with the operations department and SAP.
+2. Read the messages from the DLQ (either on the AWS platform or the logging platform).
+3. Depending on the decision of the operations department do one of the following steps:
+
+- A: Create a PaymentFailed outbox event in the Payments Core database for each DLQ message and all the partners will be notified automatically about the failure and they have to resend the payment requests. Delete the corresponding payment requests from the payments table and outbox table respectively. The payment process is nullified and it has to be initiated again by the partners.
+- B: Transfer all PaymentCreated messages from the DLQ back to the Worker-SQS, empty the DLQ and the process will be replayed automatically as usual.
+- C: If there is a crisis scenario taking place at SAP consult with the operations department if the payment requests are still going to be stored in our system (increasing costs for the company) or a temporary shutdown of our system has to take place untill further notification from SAP in order to be cost efficient.
+
+**Runbook: Partner not responding: Webhook Service failing to deliver payment updates to partner**
+
+> If a partners APIs for payment status updates are not responding the notification messages such as PaymentCreated, PaymentSettled and PaymentFailed will eventually be transfered form the Webhook-SQS to its corresponding DLQ after the maximum read count is exceeded or the maximum retention time for the messages has elapsed. In such cases the runbook instructions below can be followed.
+
+1. Consult with the operations department and the affected partner/s.
+2. Read the DLQ messages.
+3. Depending on the consultation results do one of the following steps:
+- A: Delete messages from the DLQ and inform partners/s about all affected payment updates manually (E-Mail, Fax etc.). Alternatively the payment statuses can be fetched using our GET endpoint and in this case the only necessary step would be informing the affected partner/s and deleting the messages from the DLQ.  
+- B: If partner/s APIs are online again and want to receive updates automatically, move the messages from the DLQ back to the Webhook-SQS, empty the DLQ and the notifications will be resent automatically.
+- C: If the affected APIs are undergoing long term complications place the partners into an ignore list so that resources won't be wasted and costs can be reduced. The affected partner/s can stilll access the payment status updates by using our GET endpoint.
