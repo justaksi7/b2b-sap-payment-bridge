@@ -231,3 +231,14 @@ successful.
 - A: Delete messages from the DLQ and inform partners/s about all affected payment updates manually (E-Mail, Fax etc.). Alternatively the payment statuses can be fetched using our GET endpoint and in this case the only necessary step would be informing the affected partner/s and deleting the messages from the DLQ.  
 - B: If partner/s APIs are online again and want to receive updates automatically, move the messages from the DLQ back to the Webhook-SQS, empty the DLQ and the notifications will be resent automatically.
 - C: If the affected APIs are undergoing long term complications place the partners into an ignore list so that resources won't be wasted and costs can be reduced. The affected partner/s can stilll access the payment status updates by using our GET endpoint.
+
+## Observability
+
+**Logs with correlation ids and traces across services**
+
+- All database rows that are related to payments, SQS messages and incoming POST-Requests  (all log items) have a `correlation id / idempotency key / deduplication key` that consists of the company name and order id.
+- This makes it possible to trace and monitor every single payment request from the `Payment POST-Request` to the `Payment notification events / messages` including all related metrics about the payment across all services involved.
+
+> To Do:
+- Figure out, define and visualise key metrics such as:  latency, queue depth, DLQ count, SAP Health, SAP call succes etc.
+- Figure out, define and visualise key alerts based on metric thresholds or other thresholds like: queue delays, retries, DLQ growth etc.
