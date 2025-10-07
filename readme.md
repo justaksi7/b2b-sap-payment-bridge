@@ -239,6 +239,17 @@ successful.
 - All database rows that are related to payments, SQS messages and incoming POST-Requests  (all log items) have a `correlation id / idempotency key / deduplication key` that consists of the company name and order id.
 - This makes it possible to trace and monitor every single payment request from the `Payment POST-Request` to the `Payment notification events / messages` including all related metrics about the payment across all services involved.
 
-> To Do:
-- Figure out, define and visualise key metrics such as:  latency, queue depth, DLQ count, SAP Health, SAP call succes etc.
-- Figure out, define and visualise key alerts based on metric thresholds or other thresholds like: queue delays, retries, DLQ growth etc.
+**The key metrics that are relevat to this project are the following:**
+- **SAP Succes Rate:** This metric represents the current percentile of the succesfull SAP calls made by the validator lambdas and the worker lambdas combined over a period of time (e.g. 10 minutes). If it is ever to fall below a certain threshold % an alert is raised on CloudWatch and the dev / ops team is notified about the situtation. The consequence of this is the manipulation / activation of the circuit breaker mechanism to balance the outgoing traffic to SAP in order to prevent potential overloading.
+
+- **Queue Depth (Messages):** This metric represents the current amount of messages in a queue (SQS) and if a certain threshold amount is surpassed an alert is raised and the dev / ops team is informed about it. The consequence of this could be raising the lambda concurrency of the queue to improve performance / reduce processing time.
+
+- **DLQ Count:** This metric represents the count of messages in a DLQ. It indicates that either the webhook endpoints of a partner / partners are overloaded or down or that SAP is under heavy load or is down. An alert should be raised immediately after a DLQ receives a message. Even a single message indicates that something is not right and the dev and or ops teams have to undertake immediate action (look at the runbooks above).
+
+- **SAP Health:** This metric represents the amount of succesful SAP calls (e.g. pings or mocked calls) made by the health check service over a period of time (e.g. 10 minutes). If it falls below a certain threshold it should raise an alert on CloudWatch and trigger a lambda function that automatically activates the circuit breaker mechanism in order to reduce outgoing traffic or potentially shut down the validation and worker services completely. The dev / ops teams should be informed but the circuit breaker mechanism is activated automatically.
+
+- **Gateway Latency:** This metric represents the latency of the Gateway. Higher latencies (in ms) indicate heavy load. A useful consequence would be automatically adapting the load balancing of the gateway by raising an alert on CloudWatch and triggering a lambda to adapt the load balancing of the Gateway. The dev team should be also informed and it should closely monitor the situation.
+
+**In the graphic below you can see an example for a dashboard. In reality AWS CloudWatch Dashboards or Grafana for AWS CloudWatch can be used to monitor the metrics in real time. The alarms can also be monitored on CloudWatch Alarms View.**
+
+<img src="/images/observability-metrics-graph.png" height="screen" width="screen">
