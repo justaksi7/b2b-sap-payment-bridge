@@ -253,3 +253,5 @@ successful.
 **In the graphic below you can see an example for a dashboard. In reality AWS CloudWatch Dashboards or Grafana for AWS CloudWatch can be used to monitor the metrics in real time. The alarms can also be monitored on CloudWatch Alarms View.**
 
 <img src="/images/observability-metrics-graph.png" height="screen" width="screen">
+
+> 📌 Notice that those thresholds are just examples.

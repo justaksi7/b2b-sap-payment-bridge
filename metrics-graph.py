@@ -37,7 +37,7 @@ axs[0, 1].plot(times, queue_depth, color='orange')
 axs[0, 1].set_title("Queue Depth (Messages)")
 axs[0, 1].set_ylim(0, max(queue_depth) + 50)
 axs[0, 1].grid(True, linestyle='--', alpha=0.6)
-axs[0, 1].axhline(200, color='red', linestyle='--', label='Alert Threshold')
+axs[0, 1].axhline(150, color='red', linestyle='--', label='Alert Threshold')
 axs[0, 1].legend(loc='upper center')
 
 
