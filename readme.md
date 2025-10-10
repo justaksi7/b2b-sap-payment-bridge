@@ -200,7 +200,7 @@ successful.
 ## Failure handling & runbooks
 
 **Runbook: SAP down - Validator failing to validate incoming payment requests:**
-> If SAP is down for a prolonged time the incoming payment requests will be eventually transfered from the POST-SQS queue to its corresponding DLQ after the maximum read coud is exceeded or the maximum retention tiome has elapsed. In such cases the runbook below can be used after SAP is healthy again.
+> If SAP is down for a prolonged time the incoming payment requests will be eventually transfered from the POST-SQS queue to its corresponding DLQ after the maximum read count is exceeded or the maximum retention tiome has elapsed. In such cases the runbook below can be used after SAP is healthy again.
 
 1. Consult with the operations department and SAP.
 2. Read the messages from the DLQ (either on the AWS platform or the logging platform).
@@ -211,7 +211,7 @@ successful.
 
 **Runbook: SAP down - Worker failing to process already validated payment requests (PaymentCreated)**
 
-> If SAP is down for a prolonged time the payment requests that have already been validated are eventually going to be transfered from the Worker-SQS to its corresponding DLQ. This will happen either when the maximum retention time for the messages has elapsed or the maxumum read count for the messages is exceeded. In such cases the runbook below can be utilized:
+> If SAP is down for a prolonged time the payment requests that have already been validated are eventually going to be transfered from the Worker-SQS to its corresponding DLQ. This will happen either when the maximum retention time for the messages has elapsed or the maximum read count for the messages is exceeded. In such cases the runbook below can be utilized:
 
 1. Consult with the operations department and SAP.
 2. Read the messages from the DLQ (either on the AWS platform or the logging platform).
