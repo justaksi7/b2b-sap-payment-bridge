@@ -258,3 +258,11 @@ successful.
 <img src="/images/observability-metrics-graph.png" height="screen" width="screen">
 
 > 📌 Notice that those thresholds are just examples.
+
+## Security
+
+**OAuth 2.0 is utilized in order to assure secure communication with each partner**
+
+**Webhooks with secrets are utilized in order to securely notify partners about payment updates**
+
+**No direct endpoint exposure - All services are inside a secure AWS environment and the only seervice that is exposed to the outside is the state machine responsible for distributing the incoming HTTP request to the corresponding services**
